@@ -4,7 +4,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CompanyEntity } from './entities/company.entity';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
-import { ICompany, ICreateCompany } from 'src/interfaces';
 
 @Injectable()
 export class CompaniesService {
@@ -13,35 +12,42 @@ export class CompaniesService {
     private readonly companyRepository: Repository<CompanyEntity>
   ) { }
 
-  async createCompany(dto: CreateCompanyDto): Promise<ICompany> {
-    const checkCompanyEmail: ICompany | null = await this.companyRepository.findOne({ where: { email: dto.email } });
+  async createCompany(dto: CreateCompanyDto): Promise<CompanyEntity> {
+    const checkCompanyEmail: CompanyEntity = await this.companyRepository.findOne({ where: { email: dto.email } });
     if (checkCompanyEmail) {
-      throw new HttpException("The company with this email is already registered.", HttpStatus.CONFLICT);
+      throw new HttpException("The company with this email is already registered", HttpStatus.CONFLICT);
     }
 
     // generation of the company's secret key
     const secretKey: string = crypto.randomBytes(4).toString('hex');
 
-    const createCompany: ICreateCompany = this.companyRepository.create({ ...dto, secret_key: secretKey });
-    const saveCompany: ICompany = await this.companyRepository.save(createCompany);
+    const createCompany: CompanyEntity = this.companyRepository.create({ ...dto, secret_key: secretKey });
+    const saveCompany: CompanyEntity = await this.companyRepository.save(createCompany);
     if (!saveCompany) {
-      throw new HttpException("Error saving data.", HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException("Error saving data", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     return saveCompany;
   }
 
-  async getCompanyById(id: number): Promise<ICompany> {
-    const company: ICompany | undefined = await this.companyRepository.findOneBy({ id });
+  async getCompanyById(id: number): Promise<CompanyEntity> {
+    const company: CompanyEntity = await this.companyRepository.findOneBy({ id });
     if (!company) {
-      throw new HttpException("Company not found.", HttpStatus.BAD_REQUEST);
+      throw new HttpException("Company not found", HttpStatus.BAD_REQUEST);
     }
 
     return company;
   }
 
-  async getAllCompanies(): Promise<ICompany[]> {
-    const companies: ICompany[] = await this.companyRepository.find();
+  async getAllCompanies(page: number): Promise<CompanyEntity[]> {
+    page = page || 1;
+    const limit = 10;
+    const skip = ((page - 1) * limit);
+
+    const companies: CompanyEntity[] = await this.companyRepository.find({
+      skip,
+      take: limit
+    });
     return companies;
   }
 }

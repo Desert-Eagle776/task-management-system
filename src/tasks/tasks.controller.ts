@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Headers, UseGuards, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Post, Headers, UseGuards, Get, Param, Patch, ParseIntPipe } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { AuthService } from 'src/auth/auth.service';
@@ -26,7 +26,7 @@ export class TasksController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getTaskById(@Param('id') id: string, @Headers() headers: string) {
+  getTaskById(@Param('id', ParseIntPipe) id: number, @Headers() headers: string) {
     const token: string = headers["authorization"].split(' ')[1];
     const getDataFromToken: IUserDataInToken = this.authService.getUserDataFromToken(token);
 
@@ -35,7 +35,7 @@ export class TasksController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('/complete/:id')
-  markTaskAsComplete(@Param('id') id: string, @Headers() headers: string) {
+  markTaskAsComplete(@Param('id', ParseIntPipe) id: number, @Headers() headers: string) {
     const token: string = headers["authorization"].split(' ')[1];
     const getDataFromToken: IUserDataInToken = this.authService.getUserDataFromToken(token);
 

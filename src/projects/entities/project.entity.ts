@@ -1,5 +1,4 @@
 import { CompanyEntity } from "src/companies/entities/company.entity";
-import { ICompany, IUser } from "src/interfaces";
 import { TaskEntity } from "src/tasks/entities/task.entity";
 import { UserEntity } from "src/users/entities/user.entity";
 import { Column, CreateDateColumn, UpdateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, OneToMany, JoinColumn } from "typeorm";
@@ -17,11 +16,11 @@ export class ProjectEntity {
 
   @ManyToOne(() => UserEntity, user => user.createdTasks)
   @JoinColumn({ name: 'created_user_id', referencedColumnName: 'id' })
-  createdByUser: IUser;
+  createdByUser: UserEntity;
 
   @ManyToOne(() => CompanyEntity, company => company.projects)
   @JoinColumn({ name: 'company_id', referencedColumnName: 'id' })
-  company: ICompany;
+  company: CompanyEntity;
 
   @OneToMany(() => TaskEntity, (task) => task.project)
   @JoinColumn()

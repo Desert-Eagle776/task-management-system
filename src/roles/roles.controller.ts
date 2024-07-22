@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { RolesService } from './roles.service';
 import { Roles } from './roles.decorator';
@@ -18,10 +18,17 @@ export class RolesController {
     return this.rolesService.addRole(dto);
   }
 
+  @Roles(FamilyRoles.Admin, FamilyRoles.SuperAdmin)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('assign')
+  assignRole(@Query('user', ParseIntPipe) user: number, @Query('role', ParseIntPipe) role: number) {
+    return this.rolesService.assignRole(user, role);
+  }
+
   @Roles(FamilyRoles.SuperAdmin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id')
-  oneRole(@Param('id') id: string) {
+  oneRole(@Param('id', ParseIntPipe) id: number) {
     return this.rolesService.getOneRole(id);
   }
 
@@ -35,7 +42,7 @@ export class RolesController {
   @Roles(FamilyRoles.SuperAdmin)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Delete(':id')
-  removeRole(@Param('id') id: string) {
+  removeRole(@Param('id', ParseIntPipe) id: number) {
     return this.rolesService.deleteRole(id);
   }
 }

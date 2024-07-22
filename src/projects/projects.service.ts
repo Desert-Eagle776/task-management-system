@@ -4,10 +4,9 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProjectEntity } from './entities/project.entity';
 import { Repository } from 'typeorm';
-import { UserCompanyEntity } from 'src/companies/entities/user-company.entity';
 import { UserPayload } from 'src/users/interfaces/user-payload';
 import { UserEntity } from 'src/users/entities/user.entity';
-import { IProject, IUser } from 'src/interfaces';
+import { IDeleteProject } from './interfaces/delete-project.interface';
 
 @Injectable()
 export class ProjectsService {
@@ -18,39 +17,39 @@ export class ProjectsService {
     private readonly projectRepository: Repository<ProjectEntity>
   ) { }
 
-  async createProject(dto: CreateProjectDto, userData: UserPayload): Promise<IProject> {
-    const user: IUser = await this.userRepository.findOne({
+  async createProject(dto: CreateProjectDto, userData: UserPayload): Promise<ProjectEntity> {
+    const user: UserEntity = await this.userRepository.findOne({
       where: {
         id: userData.user_id
       },
       relations: ['company']
     });
     if (!user) {
-      throw new HttpException("User not found.", HttpStatus.NOT_FOUND);
+      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
     if (!user.company) {
-      throw new HttpException("The user is not in the company's space.", HttpStatus.FORBIDDEN);
+      throw new HttpException("The user is not in the company's space", HttpStatus.FORBIDDEN);
     }
 
-    const projectExists: IProject = await this.projectRepository.findOne({
+    const projectExists: ProjectEntity = await this.projectRepository.findOne({
       where: {
         name: dto.name,
         company: user.company
       }
     });
     if (projectExists) {
-      throw new HttpException("Project with this name already exists.", HttpStatus.CONFLICT);
+      throw new HttpException("Project with this name already exists", HttpStatus.CONFLICT);
     }
 
-    const project: IProject = this.projectRepository.create({ ...dto, company: user.company, createdByUser: user });
-    const saveProject: IProject = await this.projectRepository.save(project);
+    const project: ProjectEntity = this.projectRepository.create({ ...dto, company: user.company, createdByUser: user });
+    const saveProject: ProjectEntity = await this.projectRepository.save(project);
 
     return saveProject;
   }
 
-  async getOneProject(id: string, userData: UserPayload): Promise<IProject> {
-    const user: IUser = await this.userRepository.findOne({
+  async getOneProject(id: number, userData: UserPayload): Promise<ProjectEntity> {
+    const user: UserEntity = await this.userRepository.findOne({
       where: {
         id: userData.user_id,
       },
@@ -58,16 +57,16 @@ export class ProjectsService {
     });
 
     if (!user) {
-      throw new HttpException("User not found.", HttpStatus.NOT_FOUND);
+      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
     if (!user.company) {
-      throw new HttpException("The user is not in the company's space.", HttpStatus.FORBIDDEN);
+      throw new HttpException("The user is not in the company's space", HttpStatus.FORBIDDEN);
     }
 
-    const project: IProject = await this.projectRepository.findOne({
+    const project: ProjectEntity = await this.projectRepository.findOne({
       where: {
-        id: +id,
+        id: id,
         company: user.company,
       },
       relations: [
@@ -80,9 +79,48 @@ export class ProjectsService {
     });
 
     if (!project) {
-      throw new HttpException("Project not found.", HttpStatus.NOT_FOUND);
+      throw new HttpException("Project not found", HttpStatus.NOT_FOUND);
     }
 
     return project;
+  }
+
+  async getAllProjects(page: number): Promise<ProjectEntity[]> {
+    page = page || 1;
+    const limit = 10;
+    const skip = ((page - 1) * limit);
+
+    const projects: ProjectEntity[] = await this.projectRepository.find({
+      skip,
+      take: limit,
+      relations: ['createdByUser', 'company']
+    });
+
+    return projects;
+  }
+
+  async updateProject(id: number, dto: CreateProjectDto): Promise<ProjectEntity> {
+    const project: ProjectEntity = await this.projectRepository.findOneBy({ id });
+    if (!project) {
+      throw new HttpException('Project not found', HttpStatus.NOT_FOUND);
+    }
+
+    // update project
+    await this.projectRepository.update(id, { ...dto });
+
+    const modifyProject: ProjectEntity = await this.projectRepository.findOneBy({ id });
+    return modifyProject;
+  }
+
+  async deleteProject(id: number): Promise<IDeleteProject> {
+    const project: ProjectEntity = await this.projectRepository.findOneBy({ id });
+    if (!project) {
+      throw new HttpException('Project not found', HttpStatus.NOT_FOUND);
+    }
+
+    // delete project
+    await this.projectRepository.delete(project);
+
+    return { msg: 'Project successfully deleted' };
   }
 }

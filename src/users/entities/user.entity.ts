@@ -17,6 +17,9 @@ export class UserEntity {
   @Column({ select: false })
   password: string;
 
+  @Column({ nullable: true })
+  token: string;
+
   @ManyToOne(() => RolesEntity, (roles) => roles.users)
   @JoinColumn({ name: 'role', referencedColumnName: 'id' })
   roles: RolesEntity;

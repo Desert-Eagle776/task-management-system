@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { CompaniesService } from './companies.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -17,14 +17,14 @@ export class CompaniesController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  companyById(@Param('id') id: number) {
+  companyById(@Param('id', ParseIntPipe) id: number) {
     return this.companiesService.getCompanyById(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(FamilyRoles.SuperAdmin)
-  @Get()
-  allCompanies() {
-    return this.companiesService.getAllCompanies();
+  @Get('all/:page')
+  allCompanies(@Param('page', ParseIntPipe) page: number) {
+    return this.companiesService.getAllCompanies(page);
   }
 }

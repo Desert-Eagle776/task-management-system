@@ -1,10 +1,9 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Headers } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Controller, Get, UseGuards, Headers } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { IUser } from 'src/interfaces';
 import { AuthService } from 'src/auth/auth.service';
 import { IUserDataInToken } from './interfaces/user-payload';
+import { UserEntity } from './entities/user.entity';
 
 @Controller('users')
 export class UsersController {
@@ -13,14 +12,9 @@ export class UsersController {
     private readonly authService: AuthService
   ) { }
 
-  @Post('/register')
-  registerUser(@Body() dto: CreateUserDto) {
-    return this.usersService.createUser(dto);
-  }
-
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  profile(@Headers() headers: string): Promise<IUser> {
+  profile(@Headers() headers: string): Promise<UserEntity> {
     const token: string = headers["authorization"].split(' ')[1];
     const getDataFromToken: IUserDataInToken = this.authService.getUserDataFromToken(token);
 
