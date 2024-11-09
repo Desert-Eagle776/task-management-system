@@ -1,0 +1,110 @@
+<<<<<<< HEAD
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  UserEntity,
+  IUserDataInToken,
+  Response,
+  API_RESPONSE_MESSAGE,
+  HandleHttpException,
+} from 'src/common';
+import { NotificationDto } from 'src/notifications/dto/create-notification.dto';
+import { UpdateNotificationDto } from 'src/notifications/dto/update-notification.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { Repository } from 'typeorm';
+=======
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserEntity } from './entities/user.entity';
+import { Repository } from 'typeorm';
+import { IUserDataInToken } from './interfaces/user-payload';
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
+
+@Injectable()
+export class UsersService {
+  constructor(
+<<<<<<< HEAD
+    private readonly notificationsService: NotificationsService,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+  ) {}
+
+  async getUserById(userData: IUserDataInToken): Promise<Response<UserEntity>> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: userData.user_id },
+        relations: ['company'],
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: user,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
+    }
+  }
+
+  async enablePush(
+    userId: number,
+    notificationDto: NotificationDto,
+  ): Promise<any> {
+    try {
+      const user = await this.userRepository.findOneBy({ id: userId });
+      return this.notificationsService.acceptPushNotification(
+        user,
+        notificationDto,
+      );
+    } catch (err) {
+      throw new HandleHttpException(err);
+    }
+  }
+
+  async disablePush(
+    userId: number,
+    updateNotificationDto: UpdateNotificationDto,
+  ): Promise<void> {
+    try {
+      const user = await this.userRepository.findOneBy({ id: userId });
+      await this.notificationsService.disablePushNotification(
+        user,
+        updateNotificationDto,
+      );
+    } catch (err) {
+      throw new HandleHttpException(err);
+    }
+=======
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>
+  ) { }
+
+  async getUserById(userData: IUserDataInToken): Promise<UserEntity> {
+    const user: UserEntity = await this.userRepository.findOne(
+      {
+        where: { id: userData.user_id },
+        relations: ['company']
+      });
+    if (!user) {
+      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
+    }
+
+    return user;
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
+  }
+
+  async getUserByEmail(email: string): Promise<UserEntity> {
+    const isUserExists: UserEntity = await this.userRepository.findOne({
+      where: { email },
+<<<<<<< HEAD
+      relations: ['company', 'roles'],
+=======
+      relations: ['company', 'roles']
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
+    });
+
+    return isUserExists;
+  }
+}

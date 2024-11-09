@@ -1,0 +1,13 @@
+<<<<<<< HEAD
+import { SetMetadata } from '@nestjs/common';
+import { FamilyRoles } from 'src/common';
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: FamilyRoles[]) => SetMetadata(ROLES_KEY, roles);
+=======
+import { SetMetadata } from "@nestjs/common";
+import { FamilyRoles } from "./roles.guard";
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: FamilyRoles[]) => SetMetadata(ROLES_KEY, roles);
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5

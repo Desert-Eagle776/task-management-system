@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { ApiProperty } from "@nestjs/swagger";
 import { IsInt, IsNumber, NotEquals } from "class-validator";
 
@@ -7,16 +8,24 @@ export class AssignRoleDto {
     description: 'ID of the user.',
     example: 1,
   })
+=======
+import { IsInt, IsNumber, NotEquals } from "class-validator";
+
+export class CreateRoleDto {
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
   @IsNumber()
   @IsInt()
   @NotEquals(0)
   userId: number;
 
+<<<<<<< HEAD
   @ApiProperty({
     type: String,
     description: 'ID of the role',
     example: 1,
   })
+=======
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
   @IsNumber()
   @IsInt()
   @NotEquals(0)

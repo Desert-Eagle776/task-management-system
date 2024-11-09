@@ -1,23 +1,32 @@
+<<<<<<< HEAD
 import { ApiProperty } from "@nestjs/swagger";
+=======
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
 import { IsString, MinLength } from "class-validator";
 
 const MIN_LENGTH = 1;
 
 export class CreateRoleDto {
+<<<<<<< HEAD
   @ApiProperty({
     type: String,
     description: 'Name of the role.',
     example: 'Admin',
   })
+=======
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
   @IsString()
   @MinLength(MIN_LENGTH)
   name: string;
 
+<<<<<<< HEAD
   @ApiProperty({
     type: String,
     description: 'Description of the role.',
     example: 'This is a role description',
   })
+=======
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
   @IsString()
   @MinLength(MIN_LENGTH)
   description: string;

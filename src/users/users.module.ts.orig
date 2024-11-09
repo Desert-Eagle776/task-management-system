@@ -1,0 +1,45 @@
+import { Module } from '@nestjs/common';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+<<<<<<< HEAD
+import { AuthService } from 'src/auth/auth.service';
+import {
+  UserEntity,
+  RolesEntity,
+  NotificationsEntity,
+  NotificationTokenEntity,
+} from 'src/common';
+import { RolesService } from 'src/roles/roles.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      UserEntity,
+      RolesEntity,
+      NotificationsEntity,
+      NotificationTokenEntity,
+    ]),
+  ],
+  controllers: [UsersController],
+  providers: [UsersService, AuthService, RolesService, NotificationsService],
+  exports: [UsersService],
+})
+export class UsersModule {}
+=======
+import { UserEntity } from './entities/user.entity';
+import { AuthService } from 'src/auth/auth.service';
+import { RolesEntity } from 'src/roles/entities/role.entity';
+import { RolesService } from 'src/roles/roles.service';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([UserEntity, RolesEntity])
+  ],
+  controllers: [UsersController],
+  providers: [UsersService, AuthService, RolesService],
+  exports: [UsersService]
+})
+export class UsersModule { }
+>>>>>>> 335b50b5c8006c86a7ae9c42d5a70c6e6b5e4eb5
