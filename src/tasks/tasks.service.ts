@@ -70,27 +70,18 @@ export class TasksService {
         throw new ConflictException('Users are not in the same company');
       }
 
-      const checkProject = await this.projectsRepository.findOne({
+      const project = await this.projectsRepository.findOne({
         where: {
           id: createTaskDto.projectId,
           company: user.company,
         },
       });
 
-      if (!checkProject) {
+      if (!project) {
         throw new NotFoundException(
           'There is no project with such an ID in the company',
         );
       }
-
-      const checkTask = await this.taskRepository.findOne({
-        where: {
-          name: createTaskDto.name,
-          project: { id: checkProject.id },
-          company: { id: user.company.id },
-        },
-        relations: ['project', 'company'],
-      });
 
       const taskStatus = await this.taskStatusRepository.findOneBy({
         name: TaskStatusEnum.NEW,
@@ -101,9 +92,9 @@ export class TasksService {
 
       const task = this.taskRepository.create({
         ...createTaskDto,
+        project,
         appointedToUser: appointedUser,
         createdByUser: user,
-        project: checkProject,
         company: user.company,
         status: taskStatus,
       });

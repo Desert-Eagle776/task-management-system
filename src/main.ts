@@ -2,13 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger, LoggerErrorInterceptor } from 'nestjs-pino';
 
 async function start() {
   const PORT = process.env.PORT || 3000;
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe());
+  app.useLogger(app.get(Logger));
+  app.useGlobalInterceptors(new LoggerErrorInterceptor());
 
   const config = new DocumentBuilder()
     .setTitle('Task Management System')
@@ -24,6 +27,7 @@ async function start() {
     })
     .addSecurityRequirements('bearer')
     .build();
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
