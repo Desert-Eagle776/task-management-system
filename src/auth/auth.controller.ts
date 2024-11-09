@@ -1,21 +1,55 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { IToken } from 'src/auth/interfaces/token.interface';
-import { LoginAuthDto } from './dto/login-auth.dto';
-import { UserEntity } from 'src/users/entities/user.entity';
+import { CreateAuthDto } from './dto/create-user.dto';
+import { LoginAuthDto } from './dto/login-user.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiResponse({
+  status: HttpStatus.INTERNAL_SERVER_ERROR,
+  description: 'Internal server error',
+})
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('/registration')
-  create(@Body() createAuthDto: CreateAuthDto): Promise<UserEntity> {
+  @ApiOperation({
+    summary: 'User registration',
+    description:
+      'This endpoint allows new users to register an account in the system by providing necessary details.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'The user has been successfully registered.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'The specified resource could not be found',
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'A conflict occurred',
+  })
+  create(@Body() createAuthDto: CreateAuthDto) {
     return this.authService.registration(createAuthDto);
   }
 
-  @Get('/login')
-  login(@Body() loginAuthDto: LoginAuthDto): Promise<IToken> {
+  @Post('/login')
+  @ApiOperation({
+    summary: 'User login',
+    description:
+      'This endpoint allows registered users to log into the system by providing valid credentials.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'The user has been successfully logged in.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'A conflict occurred',
+  })
+  login(@Body() loginAuthDto: LoginAuthDto) {
     return this.authService.login(loginAuthDto);
   }
 }

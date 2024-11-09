@@ -1,19 +1,35 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CompanyEntity } from './entities/company.entity';
 import { CompaniesController } from './companies.controller';
 import { CompaniesService } from './companies.service';
 import { AuthService } from 'src/auth/auth.service';
 import { UsersService } from 'src/users/users.service';
-import { UserEntity } from 'src/users/entities/user.entity';
-import { RolesEntity } from 'src/roles/entities/role.entity';
+import {
+  CompanyEntity,
+  NotificationsEntity,
+  NotificationTokenEntity,
+  RolesEntity,
+  UserEntity,
+} from 'src/common';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CompanyEntity, UserEntity, RolesEntity])
+    TypeOrmModule.forFeature([
+      CompanyEntity,
+      UserEntity,
+      RolesEntity,
+      NotificationsEntity,
+      NotificationTokenEntity,
+    ]),
   ],
   controllers: [CompaniesController],
-  providers: [CompaniesService, AuthService, UsersService],
-  exports: [CompaniesService]
+  providers: [
+    CompaniesService,
+    AuthService,
+    UsersService,
+    NotificationsService,
+  ],
+  exports: [CompaniesService],
 })
-export class CompaniesModule { }
+export class CompaniesModule {}

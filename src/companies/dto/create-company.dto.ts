@@ -1,17 +1,21 @@
-import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
-
-const MIN_LENGTH = 1;
-const MAX_LENGTH = 100;
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString } from 'class-validator';
 
 export class CreateCompanyDto {
+  @ApiProperty({
+    type: String,
+    description: 'The name of the company.',
+    example: 'Tech Innovations Ltd.',
+  })
   @IsString()
-  @MinLength(MIN_LENGTH)
-  @MaxLength(MAX_LENGTH)
-  readonly name: string;
+  name: string;
 
+  @ApiProperty({
+    type: String,
+    description: 'The contact email for the company.',
+    example: 'contact@techinnovations.com',
+  })
   @IsString()
   @IsEmail()
-  @MinLength(MIN_LENGTH)
-  @MaxLength(MAX_LENGTH)
-  readonly email: string;
+  email: string;
 }

@@ -1,18 +1,32 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { omit } from 'lodash';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserEntity } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
-import { ProjectEntity } from 'src/projects/entities/project.entity';
-import { UserPayload } from 'src/users/interfaces/user-payload';
 import { CreateTaskStatusDto } from './dto/create-task-status.dto';
-import { TaskStatusEntity } from './entities/task-status.entity';
-import { TaskEntity } from './entities/task.entity';
+import {
+  TaskStatusEnum,
+  TaskEntity,
+  TaskStatusEntity,
+  ProjectEntity,
+  UserEntity,
+  UserPayload,
+  Response,
+  API_RESPONSE_MESSAGE,
+  HandleHttpException,
+  TaskNotifications,
+} from 'src/common';
+import { UpdateTaskDto } from './dto/update-task.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class TasksService {
   constructor(
+    private readonly notificationsService: NotificationsService,
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
     @InjectRepository(ProjectEntity)
@@ -20,165 +34,303 @@ export class TasksService {
     @InjectRepository(TaskEntity)
     private readonly taskRepository: Repository<TaskEntity>,
     @InjectRepository(TaskStatusEntity)
-    private readonly taskStatusRepository: Repository<TaskStatusEntity>
-  ) { }
+    private readonly taskStatusRepository: Repository<TaskStatusEntity>,
+  ) {}
 
-  async createTask(dto: CreateTaskDto, userData: UserPayload): Promise<TaskEntity> {
-    const user: UserEntity = await this.usersRepository.findOne({
-      where: { id: userData.user_id },
-      relations: ['company'],
-      select: ['id', 'fullname', 'email', 'company']
-    });
+  async createTask(
+    createTaskDto: CreateTaskDto,
+    userData: UserPayload,
+  ): Promise<Response<TaskEntity>> {
+    try {
+      const user = await this.usersRepository.findOne({
+        where: { id: userData.user_id },
+        relations: ['company'],
+        select: ['id', 'firstName', 'lastName', 'email', 'company'],
+      });
 
-    if (!user || !user.company) {
-      throw new HttpException("The user or the user's company was not found", HttpStatus.NOT_FOUND);
-    }
-
-    const appointedUser: UserEntity = await this.usersRepository.findOne({
-      where: { id: dto.appointedUserId },
-      relations: ['company'],
-      select: ['id', 'fullname', 'email', 'company']
-    });
-
-    if (!appointedUser || !appointedUser.company) {
-      throw new HttpException("The user or the user's company was not found", HttpStatus.NOT_FOUND);
-    }
-
-    if (user.company.id !== appointedUser.company.id) {
-      throw new HttpException("Users are not in the same company", HttpStatus.CONFLICT);
-    }
-
-    const checkProject: ProjectEntity = await this.projectsRepository.findOne({
-      where: {
-        id: dto.project_id,
-        company: user.company
+      if (!user || !user.company) {
+        throw new NotFoundException(
+          "The user or the user's company was not found",
+        );
       }
-    });
 
-    if (!checkProject) {
-      throw new HttpException("There is no project with such an ID in the company", HttpStatus.NOT_FOUND);
+      const appointedUser = await this.usersRepository.findOne({
+        where: { id: createTaskDto.appointedUserId },
+        relations: ['company'],
+        select: ['id', 'firstName', 'lastName', 'email', 'company'],
+      });
+
+      if (!appointedUser || !appointedUser.company) {
+        throw new NotFoundException(
+          "The user or the user's company was not found",
+        );
+      }
+
+      if (user.company.id !== appointedUser.company.id) {
+        throw new ConflictException('Users are not in the same company');
+      }
+
+      const checkProject = await this.projectsRepository.findOne({
+        where: {
+          id: createTaskDto.projectId,
+          company: user.company,
+        },
+      });
+
+      if (!checkProject) {
+        throw new NotFoundException(
+          'There is no project with such an ID in the company',
+        );
+      }
+
+      const checkTask = await this.taskRepository.findOne({
+        where: {
+          name: createTaskDto.name,
+          project: { id: checkProject.id },
+          company: { id: user.company.id },
+        },
+        relations: ['project', 'company'],
+      });
+
+      const taskStatus = await this.taskStatusRepository.findOneBy({
+        name: TaskStatusEnum.NEW,
+      });
+      if (!taskStatus) {
+        throw new NotFoundException('Task status not found');
+      }
+
+      const task = this.taskRepository.create({
+        ...createTaskDto,
+        appointedToUser: appointedUser,
+        createdByUser: user,
+        project: checkProject,
+        company: user.company,
+        status: taskStatus,
+      });
+
+      const savedTask = await this.taskRepository.save(task);
+
+      // Delete unnecessary fields.
+      const taskForClient = omit(savedTask, [
+        'createdByUser.company',
+        'appointedToUser.company',
+      ]);
+
+      await this.notificationsService.sendPush(
+        appointedUser,
+        TaskNotifications.NEW_TASK_ASSIGNED.title,
+        TaskNotifications.NEW_TASK_ASSIGNED.body,
+      );
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: taskForClient,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
-
-    const checkTask: TaskEntity = await this.taskRepository.findOne({
-      where: {
-        name: dto.name,
-        project: { id: checkProject.id },
-        company: { id: user.company.id }
-      },
-      relations: ['project', 'company']
-    });
-
-    if (checkTask) {
-      throw new HttpException("Task with this name already exists", HttpStatus.CONFLICT);
-    }
-
-    const taskStatus: TaskStatusEntity = await this.taskStatusRepository.findOneBy({ name: 'Нова' });
-    if (!taskStatus) {
-      throw new HttpException("Task status not found", HttpStatus.NOT_FOUND);
-    }
-
-    const task: TaskEntity = this.taskRepository.create({
-      ...dto,
-      appointedToUser: appointedUser,
-      createdByUser: user,
-      project: checkProject,
-      company: user.company,
-      status: taskStatus
-    });
-
-    const savedTask: TaskEntity = await this.taskRepository.save(task);
-
-    // Delete unnecessary fields.
-    const taskForClient: TaskEntity = omit(savedTask, ['createdByUser.company', 'appointedToUser.company']);
-
-    return taskForClient;
   }
 
-  async viewTask(id: number, userData: UserPayload): Promise<TaskEntity> {
-    const user: UserEntity = await this.usersRepository.findOneBy({ id: userData.user_id });
-    if (!user) {
-      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
-    }
-
-    const task: TaskEntity = await this.taskRepository.findOne({
-      where: {
-        id: id,
-        appointedToUser: user
-      },
-      relations: ['createdByUser', 'status', 'project']
-    });
-    if (!task) {
-      throw new HttpException("Task doesn't exist", HttpStatus.NOT_FOUND);
-    }
-
-    if (task.status.name === 'Нова') {
-      const updatedStatus: TaskStatusEntity = await this.taskStatusRepository.findOneBy({ name: 'В роботі' });
-      if (!updatedStatus) {
-        throw new HttpException("Status not found", HttpStatus.NOT_FOUND);
+  async viewTask(
+    id: number,
+    userData: UserPayload,
+  ): Promise<Response<TaskEntity>> {
+    try {
+      const user = await this.usersRepository.findOneBy({
+        id: userData.user_id,
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
       }
 
-      // update the status of the task
-      await this.taskRepository.update(task.id, { status: updatedStatus });
-    }
+      const task = await this.taskRepository.findOne({
+        where: {
+          id: id,
+          appointedToUser: user,
+        },
+        relations: ['createdByUser', 'status', 'project'],
+      });
+      if (!task) {
+        throw new NotFoundException("Task doesn't exist");
+      }
 
-    return task;
+      if (task.status.name === TaskStatusEnum.NEW) {
+        const updatedStatus: TaskStatusEntity =
+          await this.taskStatusRepository.findOneBy({
+            name: TaskStatusEnum.IN_PROGRESS,
+          });
+        if (!updatedStatus) {
+          throw new NotFoundException('Status not found');
+        }
+
+        // update the status of the task
+        await this.taskRepository.update(task.id, { status: updatedStatus });
+      }
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: task,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
+    }
   }
 
-  async completeTask(id: number, userData: UserPayload): Promise<TaskEntity> {
-    const user: UserEntity = await this.usersRepository.findOneBy({ id: userData.user_id });
-    if (!user) {
-      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
-    }
-
-    const task: TaskEntity = await this.taskRepository.findOne({
-      where: {
-        id: id,
-        appointedToUser: user
-      },
-      relations: ['createdByUser', 'status', 'project']
-    });
-
-    if (!task) {
-      throw new HttpException("Task doesn't exist", HttpStatus.NOT_FOUND);
-    }
-
-    if (task.status.name === 'Завершена') {
-      throw new HttpException("Task is already completed", HttpStatus.CONFLICT);
-    }
-
-    if (task.status.name !== 'Завершена') {
-      const updatedStatus: TaskStatusEntity = await this.taskStatusRepository.findOneBy({ name: 'Завершена' });
-      if (!updatedStatus) {
-        throw new HttpException("Status not found", HttpStatus.NOT_FOUND);
+  async completeTask(
+    id: number,
+    userData: UserPayload,
+  ): Promise<Response<TaskEntity>> {
+    try {
+      const user = await this.usersRepository.findOneBy({
+        id: userData.user_id,
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
       }
 
-      // update the status of the task
-      task.status = updatedStatus;
+      const task = await this.taskRepository.findOne({
+        where: {
+          id: id,
+          appointedToUser: user,
+        },
+        relations: ['createdByUser', 'status', 'project'],
+      });
 
-      await this.taskRepository.save(task);
+      if (!task) {
+        throw new NotFoundException("Task doesn't exist");
+      }
+
+      if (task.status.name === TaskStatusEnum.COMPLETED) {
+        throw new ConflictException('Task is already completed');
+      }
+
+      if (task.status.name !== TaskStatusEnum.COMPLETED) {
+        const updatedStatus = await this.taskStatusRepository.findOneBy({
+          name: 'Completed',
+        });
+        if (!updatedStatus) {
+          throw new NotFoundException('Status not found');
+        }
+
+        // update the status of the task
+        task.status = updatedStatus;
+
+        await this.taskRepository.save(task);
+      }
+
+      await this.notificationsService.sendPush(
+        user,
+        TaskNotifications.TASK_COMPLETED.title,
+        TaskNotifications.TASK_COMPLETED.body,
+      );
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: task,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
-
-    return task;
   }
 
-  async createTaskStatus(dto: CreateTaskStatusDto, userData: UserPayload): Promise<TaskStatusEntity> {
-    const user: UserEntity = await this.usersRepository.findOne({
-      where: {
-        id: userData.user_id
+  async createTaskStatus(
+    createTaskStatusDto: CreateTaskStatusDto,
+    userData: UserPayload,
+  ): Promise<Response<TaskStatusEntity>> {
+    try {
+      const user = await this.usersRepository.findOne({
+        where: {
+          id: userData.user_id,
+        },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
       }
-    });
-    if (!user) {
-      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
+
+      const taskStatus = await this.taskStatusRepository.findOneBy({
+        name: createTaskStatusDto.name,
+      });
+      if (taskStatus) {
+        throw new ConflictException('A task with this name already exists');
+      }
+
+      const createTaskStatus = this.taskStatusRepository.create({
+        ...createTaskStatusDto,
+      });
+      const saveTaskStatus = await this.taskStatusRepository.save(
+        createTaskStatus,
+      );
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: saveTaskStatus,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
+  }
 
-    const taskStatus: TaskStatusEntity = await this.taskStatusRepository.findOneBy({ name: dto.name });
-    if (taskStatus) {
-      throw new HttpException("A task with this name already exists", HttpStatus.CONFLICT)
+  async updateTask(
+    id: number,
+    updateTaskDto: UpdateTaskDto,
+  ): Promise<Response<TaskEntity>> {
+    try {
+      const { appointedUserId, ...updateData } = updateTaskDto;
+
+      const user = await this.usersRepository.findOne({
+        where: {
+          id: appointedUserId,
+        },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const task = await this.taskRepository.findOneBy({ id });
+      if (!task) {
+        throw new NotFoundException('Task not found');
+      }
+
+      await this.taskRepository.update(id, {
+        ...updateData,
+        appointedToUser: user,
+      });
+
+      const modifyTask = await this.taskRepository.findOne({
+        where: { id },
+        relations: ['appointedToUser'],
+      });
+
+      await this.notificationsService.sendPush(
+        modifyTask.appointedToUser,
+        TaskNotifications.TASK_UPDATED.title,
+        TaskNotifications.TASK_UPDATED.body,
+      );
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: modifyTask,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
+  }
 
-    const createTaskStatus: TaskStatusEntity = this.taskStatusRepository.create({ ...dto });
-    const saveTaskStatus: TaskStatusEntity = await this.taskStatusRepository.save(createTaskStatus);
+  async deleteTask(id: number): Promise<Response<any>> {
+    try {
+      const task = await this.taskRepository.findOneBy({ id });
+      if (!task) {
+        throw new NotFoundException('Task not found');
+      }
 
-    return saveTaskStatus;
+      await this.taskRepository.delete(task);
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: task,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
+    }
   }
 }

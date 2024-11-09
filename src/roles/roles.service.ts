@@ -1,11 +1,19 @@
-import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateRoleDto } from './dto/create-role.dto';
-import { RolesEntity } from './entities/role.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserEntity } from 'src/users/entities/user.entity';
-import { IDeleteRole } from './interfaces/delete-role.interface';
-import { IAssignRole } from './interfaces/assign-role.intarface';
+import { AssignRoleDto } from './dto/assign-role.dto';
+import {
+  RolesEntity,
+  UserEntity,
+  API_RESPONSE_MESSAGE,
+  Response,
+  HandleHttpException,
+} from 'src/common';
 
 @Injectable()
 export class RolesService {
@@ -13,68 +21,109 @@ export class RolesService {
     @InjectRepository(RolesEntity)
     private readonly rolesRepository: Repository<RolesEntity>,
     @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>
-  ) { }
+    private readonly userRepository: Repository<UserEntity>,
+  ) {}
 
-  async addRole(dto: CreateRoleDto): Promise<RolesEntity> {
-    const roleExistence: RolesEntity = await this.rolesRepository.findOne({
-      where: { name: dto.name }
-    });
+  async addRole(createRoleDto: CreateRoleDto): Promise<Response<RolesEntity>> {
+    try {
+      const role = await this.rolesRepository.findOne({
+        where: { name: createRoleDto.name },
+      });
 
-    if (roleExistence) {
-      throw new HttpException("Role already exists", HttpStatus.CONFLICT);
+      if (role) {
+        throw new ConflictException('Role already exists');
+      }
+
+      const createRole = this.rolesRepository.create(createRoleDto);
+      const saveRole = await this.rolesRepository.save(createRole);
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: saveRole,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
-
-    const createRole: RolesEntity = this.rolesRepository.create(dto);
-    const saveRole: RolesEntity = await this.rolesRepository.save(createRole);
-
-    return saveRole;
   }
 
-  async getOneRole(id: number): Promise<RolesEntity> {
-    const role: RolesEntity = await this.rolesRepository.findOne({
-      where: { id: id }
-    });
+  async getOneRole(id: number): Promise<Response<RolesEntity>> {
+    try {
+      const role = await this.rolesRepository.findOne({
+        where: { id: id },
+      });
 
-    if (!role) {
-      throw new HttpException("Role not found", HttpStatus.NOT_FOUND);
+      if (!role) {
+        throw new NotFoundException('Role not found');
+      }
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: role,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
-
-    return role;
   }
 
-  async getAllRoles(): Promise<RolesEntity[]> {
-    const roles: RolesEntity[] = await this.rolesRepository.find();
-    return roles;
+  async getAllRoles(): Promise<Response<RolesEntity[]>> {
+    try {
+      const roles = await this.rolesRepository.find();
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: roles,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
+    }
   }
 
-  async deleteRole(id: number): Promise<IDeleteRole> {
-    const role: RolesEntity = await this.rolesRepository.findOne({ where: { id: id } });
-    if (!role) {
-      throw new HttpException("Role not found", HttpStatus.NOT_FOUND);
+  async deleteRole(id: number): Promise<Response<any>> {
+    try {
+      const role = await this.rolesRepository.findOne({
+        where: { id: id },
+      });
+      if (!role) {
+        throw new NotFoundException('Role not found');
+      }
+
+      await this.rolesRepository.delete(id);
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: null,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
-
-    await this.rolesRepository.delete(id);
-
-    return { msg: "The removal was successful!" };
   }
 
-  async assignRole(userId: number, roleId: number): Promise<IAssignRole> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
+  async assignRole(assignRoleDto: AssignRoleDto): Promise<Response<any>> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: assignRoleDto.userId },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const role = await this.rolesRepository.findOne({
+        where: { id: assignRoleDto.roleId },
+      });
+      if (!role) {
+        throw new NotFoundException('Role not found');
+      }
+
+      await this.userRepository.save({
+        id: assignRoleDto.userId,
+        roles: role,
+      });
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: null,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
     }
-
-    const role = await this.rolesRepository.findOne({ where: { id: roleId } });
-    if (!role) {
-      throw new HttpException("Role not found", HttpStatus.NOT_FOUND);
-    }
-
-    await this.userRepository.save({
-      id: userId,
-      roles: role,
-    });
-
-    return { msg: "Role successfully updated" };
   }
 }
