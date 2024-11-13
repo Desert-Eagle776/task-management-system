@@ -1,4 +1,12 @@
-import { Controller, Post, Body, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpStatus,
+  ParseIntPipe,
+  Query,
+  Get,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-user.dto';
 import { LoginAuthDto } from './dto/login-user.dto';
@@ -51,5 +59,25 @@ export class AuthController {
   })
   login(@Body() loginAuthDto: LoginAuthDto) {
     return this.authService.login(loginAuthDto);
+  }
+
+  @Get('/confirm')
+  @ApiOperation({
+    summary: 'User confirmation',
+    description: 'This endpoint allows users to confirm their registration.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'The user has been successfully confirmed.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'A conflict occurred',
+  })
+  confirm(
+    @Query('userId', ParseIntPipe) userId: number,
+    @Query('token') token: string,
+  ) {
+    return this.authService.confirm(userId, token);
   }
 }
