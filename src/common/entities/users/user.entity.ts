@@ -30,6 +30,9 @@ export class UserEntity {
   @Column({ nullable: true })
   token: string;
 
+  @Column({ default: false })
+  isEmailConfirmed: boolean;
+
   @ManyToOne(() => RolesEntity, (roles) => roles.users)
   @JoinColumn({ name: 'role', referencedColumnName: 'id' })
   roles: RolesEntity;

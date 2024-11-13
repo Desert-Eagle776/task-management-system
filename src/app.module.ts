@@ -11,12 +11,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { RolesModule } from './roles/roles.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LoggerModule } from 'nestjs-pino';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
       envFilePath: '.env',
+      isGlobal: true,
     }),
     JwtModule.register({
       global: true,
@@ -29,13 +30,11 @@ import { LoggerModule } from 'nestjs-pino';
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        customProps: (req, res) => ({
-          context: 'HTTP',
-        }),
         transport: {
           target: 'pino-pretty',
           options: {
-            singleLine: true,
+            colorize: true,
+            levelFirst: true,
           },
         },
       },
@@ -47,6 +46,7 @@ import { LoggerModule } from 'nestjs-pino';
     AuthModule,
     RolesModule,
     NotificationsModule,
+    MailModule,
   ],
   controllers: [],
   providers: [],
