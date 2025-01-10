@@ -2,7 +2,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-user.dto';
@@ -20,14 +19,16 @@ import {
   IToken,
   Response,
 } from 'src/common';
-import { NotificationsService } from 'src/notifications/notifications.service';
+import { MailService } from 'src/mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
-    private readonly notificationService: NotificationsService,
+    private readonly mailService: MailService,
+    private readonly configService: ConfigService,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(RolesEntity)
@@ -60,6 +61,8 @@ export class AuthService {
         roles: role,
       });
       const saveUser = await this.userRepository.save(createUser);
+
+      await this.mailService.sendEmailConfirmation(saveUser);
 
       return {
         msg: API_RESPONSE_MESSAGE.SUCCESS,
@@ -97,6 +100,40 @@ export class AuthService {
       return {
         msg: API_RESPONSE_MESSAGE.SUCCESS,
         data: token,
+      };
+    } catch (err) {
+      throw new HandleHttpException(err);
+    }
+  }
+
+  async confirm(userId: number, token: string): Promise<Response<any>> {
+    try {
+      const user = await this.userRepository.findOneBy({ id: userId });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      if (user.isEmailConfirmed) {
+        throw new ConflictException('Email already confirmed');
+      }
+
+      const checkToken = await this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
+      });
+      if (!checkToken) {
+        throw new ConflictException('Invalid token');
+      }
+
+      await this.userRepository.update(
+        { id: userId },
+        {
+          isEmailConfirmed: true,
+        },
+      );
+
+      return {
+        msg: API_RESPONSE_MESSAGE.SUCCESS,
+        data: null,
       };
     } catch (err) {
       throw new HandleHttpException(err);
